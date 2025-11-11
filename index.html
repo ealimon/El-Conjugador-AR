@@ -74,6 +74,16 @@
         .correct-bg {
             background-color: var(--secondary-color);
         }
+
+        /* Animation for score/streak "pop" */
+        @keyframes scorePop {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        .pop-animation {
+            animation: scorePop 0.3s ease-out;
+        }
     </style>
 </head>
 <body>
@@ -96,12 +106,14 @@
             </select>
         </div>
 
-        <!-- Score Display -->
+        <!-- Score & Rank Display (New Gamified Layout) -->
         <div class="flex justify-between items-center mb-6 text-xl font-semibold">
-            <span class="text-gray-700">Score: <span id="scoreDisplay" class="text-2xl text-red-500">0</span></span>
-            <span class="streak-display">Streak: <span id="streakDisplay" class="text-2xl">0</span></span>
-            <span class="text-gray-700">Round: <span id="roundDisplay" class="text-2xl text-blue-500">1</span></span>
+            <span class="text-gray-700">Score: <span id="scoreDisplay" class="text-2xl text-red-500 transition duration-100">0</span></span>
+            <span class="streak-display">Streak: <span id="streakDisplay" class="text-2xl transition duration-100">0</span></span>
+            <!-- Rank Display is the new motivational feature -->
+            <span class="text-gray-700">Rank: <span id="rankDisplay" class="text-xl text-blue-700 font-extrabold transition duration-100">Novice</span></span>
         </div>
+        <!-- Round display removed from UI to declutter, but still tracked -->
 
         <!-- Question Box -->
         <div id="questionBox" class="question-box rounded-xl p-6 mb-8 shadow-lg">
@@ -157,7 +169,6 @@
 
         const AR_VERBS = [
             // 20 Most Common Regular -AR Verbs for Foundation Practice
-            // Note: 'Cerrar' was replaced by 'Desayunar' to maintain 100% regularity.
             { infinitive: 'hablar', meaning: 'to speak', type: 'regular' },
             { infinitive: 'estudiar', meaning: 'to study', type: 'regular' },
             { infinitive: 'trabajar', meaning: 'to work', type: 'regular' },
@@ -249,8 +260,8 @@
         const $checkButton = document.getElementById('checkButton');
         const $nextButton = document.getElementById('nextButton');
         const $scoreDisplay = document.getElementById('scoreDisplay');
-        const $roundDisplay = document.getElementById('roundDisplay');
         const $streakDisplay = document.getElementById('streakDisplay');
+        const $rankDisplay = document.getElementById('rankDisplay'); // New Element
         const $feedback = document.getElementById('feedbackMessage');
         const $questionBox = document.getElementById('questionBox');
         const $difficultySelect = document.getElementById('difficultySelect');
@@ -288,6 +299,36 @@
         }
 
         /**
+         * Updates the Rank display based on the current streak.
+         */
+        function updateRankDisplay(streak) {
+            let rank = 'Novice';
+            if (streak >= 15) {
+                rank = 'Maestro de AR';
+            } else if (streak >= 10) {
+                rank = 'Conjuguator';
+            } else if (streak >= 5) {
+                rank = 'Apprentice';
+            }
+            $rankDisplay.textContent = rank;
+        }
+
+        /**
+         * Triggers a visual pop animation on score/streak elements.
+         */
+        function triggerPopAnimation() {
+            $scoreDisplay.classList.add('pop-animation');
+            $streakDisplay.classList.add('pop-animation');
+            $rankDisplay.classList.add('pop-animation');
+
+            setTimeout(() => {
+                $scoreDisplay.classList.remove('pop-animation');
+                $streakDisplay.classList.remove('pop-animation');
+                $rankDisplay.classList.remove('pop-animation');
+            }, 300);
+        }
+
+        /**
          * Displays a temporary feedback message.
          */
         function showFeedback(message, colorClass) {
@@ -314,8 +355,9 @@
             round = 1;
             currentStreak = 0;
             $scoreDisplay.textContent = score;
-            $roundDisplay.textContent = round;
+            // $roundDisplay.textContent = round; // Hidden from UI
             $streakDisplay.textContent = currentStreak;
+            updateRankDisplay(currentStreak); // Update rank on reset
 
             startNewRound();
         }
@@ -333,7 +375,7 @@
             $nextButton.classList.add('hidden');
             $feedback.classList.remove('feedback-visible', 'bg-secondary-color', 'bg-primary-color', 'bg-yellow-600', 'bg-red-500');
             $feedback.textContent = '';
-            $roundDisplay.textContent = round;
+            // $roundDisplay.textContent = round; // Hidden from UI
             $streakDisplay.textContent = currentStreak;
             $questionBox.classList.remove('correct-bg');
 
@@ -363,7 +405,7 @@
 
             const correctAnswer = getCorrectConjugation(currentVerbObj, currentPronoun);
 
-            // Normalize for comparison
+            // Normalize for comparison (handles accents/case)
             const normalizedUserAnswer = normalizeString(userAnswer);
             const normalizedCorrectAnswer = normalizeString(correctAnswer);
 
@@ -372,8 +414,12 @@
                 playSound(true);
                 score++;
                 currentStreak++;
+                
                 $scoreDisplay.textContent = score;
                 $streakDisplay.textContent = currentStreak;
+                triggerPopAnimation(); // Run the success animation
+                updateRankDisplay(currentStreak); // Update the rank
+                
                 showFeedback(`¡Correcto! **${currentPronoun} ${correctAnswer}**.`, 'bg-secondary-color');
                 $questionBox.classList.add('correct-bg');
                 $questionBox.classList.remove('bg-primary-color');
@@ -389,6 +435,7 @@
                 playSound(false);
                 currentStreak = 0; // Reset streak
                 $streakDisplay.textContent = currentStreak;
+                updateRankDisplay(currentStreak); // Update rank on reset
                 
                 // Show "Try Again" message
                 showFeedback(`¡Try Again!`, 'bg-red-500'); 
@@ -434,6 +481,7 @@
             currentDifficulty = $difficultySelect.value; 
             
             startNewRound();
+            updateRankDisplay(currentStreak); // Initial rank display
         };
 
     </script>
