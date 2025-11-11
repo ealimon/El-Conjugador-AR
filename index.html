@@ -8,6 +8,8 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Load Tone.js for sound generation -->
     <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.min.js"></script>
+    <!-- Load Confetti Library for Game Over Screen -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         /* Custom styles for the game feel */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
@@ -380,6 +382,24 @@
 
             // Show Game Over Screen
             $gameOverScreen.classList.remove('hidden');
+
+            // Confetti Explosion!
+            if (typeof confetti === 'function') {
+                confetti({
+                    particleCount: 150,
+                    spread: 90,
+                    origin: { y: 0.6 }
+                });
+                // Optional secondary burst
+                setTimeout(() => {
+                    confetti({
+                        particleCount: 100,
+                        spread: 60,
+                        origin: { y: 0.8 },
+                        angle: 120
+                    });
+                }, 300);
+            }
         }
 
         /**
