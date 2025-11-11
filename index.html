@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>El Conjugador AR</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles for the game feel */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
+        :root {
+            --primary-color: #EF4444; /* Red-500 */
+            --secondary-color: #10B981; /* Emerald-500 */
+            --bg-color: #FEF3C7; /* Amber-100 */
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1rem;
+        }
+        .game-card {
+            background: white;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+            transition: transform 0.3s ease-in-out;
+            max-width: 90%;
+            width: 500px;
+        }
+        .game-card:hover {
+            transform: translateY(-4px);
+        }
+        .question-box {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .feedback-message {
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            transform: translateY(10px);
+        }
+        .feedback-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .button-style {
+            transition: all 0.2s;
+            box-shadow: 0 4px 0 0 rgba(0, 0, 0, 0.2);
+            border-bottom: 3px solid rgba(0, 0, 0, 0.2);
+        }
+        .button-style:active {
+            box-shadow: none;
+            transform: translateY(4px);
+            border-bottom: none;
+        }
+        #checkButton {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        #nextButton {
+            background-color: #3B82F6; /* Blue-500 */
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="gameApp" class="game-card rounded-xl p-6 md:p-10 text-center">
+        <h1 class="text-3xl md:text-4xl font-extrabold mb-2 text-gray-800">El Conjugador AR</h1>
+        <p class="text-lg text-gray-600 mb-6">Master the Spanish -AR Verbs!</p>
+
+        <!-- Score Display -->
+        <div class="flex justify-between items-center mb-6 text-xl font-semibold">
+            <span class="text-gray-700">Score: <span id="scoreDisplay" class="text-2xl text-red-500">0</span></span>
+            <span class="text-gray-700">Round: <span id="roundDisplay" class="text-2xl text-blue-500">1</span></span>
+        </div>
+
+        <!-- Question Box -->
+        <div id="questionBox" class="question-box rounded-xl p-6 mb-8 shadow-lg">
+            <p class="text-sm font-light uppercase tracking-widest mb-2">Conjugate the verb:</p>
+            <div class="text-4xl md:text-5xl font-bold mb-3" id="infinitiveDisplay"></div>
+            <p class="text-2xl font-semibold italic opacity-90" id="pronounDisplay"></p>
+        </div>
+
+        <!-- Input and Controls -->
+        <div class="space-y-4">
+            <input
+                type="text"
+                id="answerInput"
+                placeholder="Type the conjugation here (e.g., hablo)"
+                class="w-full p-3 text-lg border-2 border-gray-300 rounded-lg focus:border-red-500 focus:ring-red-500 outline-none transition duration-150"
+                autocapitalize="off"
+                autocomplete="off"
+            >
+            <div id="buttonContainer" class="flex flex-col space-y-3">
+                <button
+                    id="checkButton"
+                    class="button-style w-full py-3 rounded-xl text-xl font-bold uppercase disabled:opacity-50"
+                    onclick="checkAnswer()"
+                >
+                    Check
+                </button>
+                <button
+                    id="nextButton"
+                    class="button-style w-full py-3 rounded-xl text-xl font-bold uppercase hidden"
+                    onclick="nextQuestion()"
+                >
+                    Next Verb
+                </button>
+            </div>
+        </div>
+
+        <!-- Feedback Message -->
+        <div id="feedbackMessage" class="feedback-message mt-6 text-center text-xl font-semibold p-3 rounded-lg">
+            <!-- Feedback content appears here -->
+        </div>
+
+        <!-- Rules/Help Section -->
+        <div class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">
+            <p class="font-bold mb-2 text-gray-700">Conjugation Rules:</p>
+            <p>Remove the **-AR** and add the ending: -o, -as, -a, -amos, -áis, -an.</p>
+            <p class="text-xs mt-1">Accents on *vosotros* are optional for this game, but recommended!</p>
+        </div>
+    </div>
+
+    <script>
+        // --- Game Data ---
+
+        const AR_VERBS = [
+            'hablar',   // to speak
+            'estudiar', // to study
+            'caminar',  // to walk
+            'trabajar', // to work
+            'comprar',  // to buy
+            'ayudar',   // to help
+            'necesitar',// to need
+            'mirar',    // to look
+            'cocinar',  // to cook
+            'bailar'    // to dance
+        ];
+
+        // Pronouns and their corresponding -AR endings
+        const PRONOUNS = {
+            'Yo': 'o',
+            'Tú': 'as',
+            'Él': 'a',
+            'Ella': 'a',
+            'Usted': 'a',
+            'Nosotros': 'amos',
+            'Nosotras': 'amos',
+            'Vosotros': 'áis', // Accented form
+            'Vosotras': 'áis',
+            'Ellos': 'an',
+            'Ellas': 'an',
+            'Ustedes': 'an'
+        };
+
+        const PRONOUN_LIST = Object.keys(PRONOUNS);
+
+        // --- Game State ---
+        let currentVerb = '';
+        let currentPronoun = '';
+        let score = 0;
+        let round = 1;
+        let isAnswered = false; // Prevents checking multiple times
+
+        // --- DOM Elements ---
+        const $infinitive = document.getElementById('infinitiveDisplay');
+        const $pronoun = document.getElementById('pronounDisplay');
+        const $input = document.getElementById('answerInput');
+        const $checkButton = document.getElementById('checkButton');
+        const $nextButton = document.getElementById('nextButton');
+        const $scoreDisplay = document.getElementById('scoreDisplay');
+        const $roundDisplay = document.getElementById('roundDisplay');
+        const $feedback = document.getElementById('feedbackMessage');
+        const $questionBox = document.getElementById('questionBox');
+
+        // --- Helper Functions ---
+
+        /**
+         * Gets a random element from an array.
+         */
+        function getRandomElement(arr) {
+            return arr[Math.floor(Math.random() * arr.length)];
+        }
+
+        /**
+         * Calculates the correct conjugation for any regular -AR verb.
+         */
+        function getCorrectConjugation(infinitive, pronoun) {
+            const stem = infinitive.slice(0, -2); // Remove 'ar'
+            const ending = PRONOUNS[pronoun];
+            return stem + ending;
+        }
+
+        /**
+         * Normalizes a string by converting to lowercase and removing accents.
+         * Used for flexible answer checking.
+         */
+        function normalizeString(str) {
+            // Remove accents (and ñ, although not strictly needed for AR verbs)
+            return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        /**
+         * Starts a new round of the game.
+         */
+        function startNewRound() {
+            // 1. Reset state for the new round
+            isAnswered = false;
+            $input.value = '';
+            $input.disabled = false;
+            $checkButton.disabled = false;
+            $checkButton.classList.remove('hidden');
+            $nextButton.classList.add('hidden');
+            $feedback.classList.remove('feedback-visible', 'bg-secondary-color', 'bg-primary-color');
+            $feedback.textContent = '';
+            $roundDisplay.textContent = round;
+
+            // 2. Select new verb and pronoun
+            currentVerb = getRandomElement(AR_VERBS);
+            currentPronoun = getRandomElement(PRONOUN_LIST);
+
+            // 3. Update the UI
+            $infinitive.textContent = currentVerb;
+            $pronoun.textContent = `(${currentPronoun})`;
+            $input.focus();
+        }
+
+        /**
+         * Checks the user's input against the correct conjugation.
+         */
+        function checkAnswer() {
+            if (isAnswered) return;
+
+            const userAnswer = $input.value.trim();
+            if (!userAnswer) {
+                showFeedback("Please enter your answer.", 'bg-gray-400');
+                return;
+            }
+
+            const correctAnswer = getCorrectConjugation(currentVerb, currentPronoun);
+
+            // Normalize for comparison: treat "hablais" as correct for "habláis" for flexibility
+            const normalizedUserAnswer = normalizeString(userAnswer);
+            const normalizedCorrectAnswer = normalizeString(correctAnswer);
+
+            if (normalizedUserAnswer === normalizedCorrectAnswer) {
+                // Correct Answer
+                score++;
+                $scoreDisplay.textContent = score;
+                showFeedback(`¡Correcto! The answer is **${correctAnswer}**.`, 'bg-secondary-color');
+                $questionBox.classList.remove('bg-primary-color');
+                $questionBox.classList.add('bg-secondary-color');
+
+                // Prepare for next round
+                isAnswered = true;
+                $input.disabled = true;
+                $checkButton.classList.add('hidden');
+                $nextButton.classList.remove('hidden');
+                round++;
+            } else {
+                // Incorrect Answer
+                showFeedback(`Incorrecto. The correct answer is **${correctAnswer}**.`, 'bg-primary-color');
+                $input.disabled = true;
+                $checkButton.classList.add('hidden');
+                $nextButton.classList.remove('hidden');
+                isAnswered = true;
+                round++;
+            }
+        }
+
+        /**
+         * Handles the transition to the next question.
+         */
+        function nextQuestion() {
+            $questionBox.classList.remove('bg-secondary-color');
+            $questionBox.classList.add('bg-primary-color');
+            startNewRound();
+        }
+
+
+        /**
+         * Displays a temporary feedback message.
+         * @param {string} message - The message content.
+         * @param {string} colorClass - Tailwind background class.
+         */
+        function showFeedback(message, colorClass) {
+            // Remove previous classes
+            $feedback.classList.remove('bg-secondary-color', 'bg-primary-color', 'bg-gray-400');
+            // Add new classes
+            $feedback.classList.add(colorClass, 'text-white', 'feedback-visible');
+            // Replace simple bolding syntax with span for styling
+            $feedback.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<span class="font-extrabold">$1</span>');
+        }
+
+        // --- Event Listeners and Initialization ---
+
+        // Allow pressing Enter key to check the answer
+        $input.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !isAnswered) {
+                checkAnswer();
+            } else if (e.key === 'Enter' && isAnswered) {
+                nextQuestion();
+            }
+        });
+
+        // Initialize the game when the window loads
+        window.onload = function() {
+            // The initial question box color
+            $questionBox.classList.add('bg-primary-color');
+            startNewRound();
+        };
+
+    </script>
+</body>
+</html>
