@@ -96,13 +96,13 @@
         <h1 class="text-3xl md:text-4xl font-extrabold mb-2 text-gray-800">El Conjugador AR</h1>
         <p class="text-lg text-gray-600 mb-6">25 Round Regular -AR Challenge!</p>
 
-        <!-- Difficulty Selector -->
+        <!-- Level Selector (formerly Difficulty) -->
         <div id="difficultySelectorContainer" class="mb-4 flex justify-center items-center">
-            <label for="difficultySelect" class="text-gray-700 font-semibold mr-3 text-sm md:text-base">Difficulty:</label>
+            <label for="difficultySelect" class="text-gray-700 font-semibold mr-3 text-sm md:text-base">Level:</label>
             <select 
                 id="difficultySelect" 
                 class="p-2 border border-gray-300 rounded-lg text-sm md:text-base bg-gray-50 focus:ring-red-500 focus:border-red-500 outline-none" 
-                onchange="setDifficulty(this.value)"
+                onchange="setLevel(this.value)"
             >
                 <option value="beginner">Beginner (Singular)</option>
                 <option value="intermediate">Intermediate (Plural)</option>
@@ -110,17 +110,14 @@
             </select>
         </div>
 
-        <!-- Score & Rank Display -->
+        <!-- Score, Streak, & Round Display -->
         <div id="statsDisplay" class="flex justify-between items-center mb-6 text-xl font-semibold">
             <span class="text-gray-700">Score: <span id="scoreDisplay" class="text-2xl text-red-500 transition duration-100">0</span></span>
             <span class="streak-display">Streak: <span id="streakDisplay" class="text-2xl transition duration-100">0</span></span>
-            <!-- Rank Display is the new motivational feature -->
-            <span class="text-gray-700">Rank: <span id="rankDisplay" class="text-xl text-blue-700 font-extrabold transition duration-100">Novice</span></span>
+            <!-- 'Rank' replaced with 'Round' -->
+            <span class="text-gray-700">Round: <span id="roundDisplay" class="text-xl text-blue-700 font-extrabold transition duration-100">1 / 25</span></span>
         </div>
         
-        <!-- Question Counter -->
-        <p id="roundCounter" class="text-base text-gray-600 mb-4 font-bold">Round <span id="roundDisplay">1</span> of 25</p>
-
         <!-- Question Box -->
         <div id="questionBox" class="question-box rounded-xl p-6 mb-8 shadow-lg">
             <p class="text-sm font-light uppercase tracking-widest mb-2">Conjugate the verb:</p>
@@ -183,7 +180,7 @@
             <button
                 id="restartButton"
                 class="button-style w-full py-3 mt-8 rounded-xl text-xl font-bold uppercase"
-                onclick="setDifficulty(currentDifficulty)"
+                onclick="setLevel(currentLevel)"
             >
                 Play Again!
             </button>
@@ -199,7 +196,7 @@
 
     <script>
         // --- Game Data ---
-        const MAX_ROUNDS = 25; // New: Game stops after this many rounds
+        const MAX_ROUNDS = 25; // Game stops after this many rounds
 
         const AR_VERBS = [
             // 20 Most Common Regular -AR Verbs for Foundation Practice
@@ -241,7 +238,7 @@
             'Ustedes': { ending: 'an', isBoot: true, index: 11 }
         };
         
-        // Define Pronoun Lists for quick access based on difficulty
+        // Define Pronoun Lists for quick access based on level
         const PRONOUN_GROUPS = {
             beginner: ['Yo', 'Tú', 'Él', 'Ella', 'Usted'],
             intermediate: ['Nosotros', 'Nosotras', 'Vosotros', 'Vosotras', 'Ellos', 'Ellas', 'Ustedes'],
@@ -281,9 +278,9 @@
         let score = 0;
         let round = 1;
         let currentStreak = 0;
-        let highStreak = 0; // New: Tracks the highest streak achieved
+        let highStreak = 0; // Tracks the highest streak achieved
         let isAnswered = false; 
-        let currentDifficulty = 'advanced'; 
+        let currentLevel = 'advanced'; // Renamed variable from currentDifficulty
 
         // --- DOM Elements ---
         const $infinitive = document.getElementById('infinitiveDisplay');
@@ -294,17 +291,15 @@
         const $nextButton = document.getElementById('nextButton');
         const $scoreDisplay = document.getElementById('scoreDisplay');
         const $streakDisplay = document.getElementById('streakDisplay');
-        const $rankDisplay = document.getElementById('rankDisplay'); 
-        const $roundDisplay = document.getElementById('roundDisplay'); // Added for the counter
+        // $rankDisplay removed, replaced by $roundDisplay in stats bar
+        const $roundDisplay = document.getElementById('roundDisplay'); 
         const $feedback = document.getElementById('feedbackMessage');
         const $questionBox = document.getElementById('questionBox');
         const $difficultySelect = document.getElementById('difficultySelect');
         
-        // New Game Over Elements
+        // Game Over Elements
         const $gameOverScreen = document.getElementById('gameOverScreen');
-        const $gameContainer = document.getElementById('gameApp'); // Main container
         const $inputControls = document.getElementById('inputControls');
-        const $roundCounter = document.getElementById('roundCounter');
         const $statsDisplay = document.getElementById('statsDisplay');
         const $difficultySelectorContainer = document.getElementById('difficultySelectorContainer');
 
@@ -331,27 +326,20 @@
             return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         }
 
-        function updateRankDisplay(streak) {
-            let rank = 'Novice';
-            if (streak >= 15) {
-                rank = 'Maestro de AR';
-            } else if (streak >= 10) {
-                rank = 'Conjuguator';
-            } else if (streak >= 5) {
-                rank = 'Apprentice';
-            }
-            $rankDisplay.textContent = rank;
-        }
-
+        /**
+         * Triggers a visual pop animation on score/streak elements.
+         */
         function triggerPopAnimation() {
             $scoreDisplay.classList.add('pop-animation');
             $streakDisplay.classList.add('pop-animation');
-            $rankDisplay.classList.add('pop-animation');
+            
+            // Note: The round display is now part of the stats bar, so it also pops for visual effect
+            $roundDisplay.classList.add('pop-animation');
 
             setTimeout(() => {
                 $scoreDisplay.classList.remove('pop-animation');
                 $streakDisplay.classList.remove('pop-animation');
-                $rankDisplay.classList.remove('pop-animation');
+                $roundDisplay.classList.remove('pop-animation');
             }, 300);
         }
 
@@ -368,12 +356,13 @@
             }
         }
         
-        // New: Displays the game over screen and calculates stats
+        /**
+         * Displays the game over screen and calculates stats.
+         */
         function showGameOverScreen() {
-            // Hide game UI
+            // Hide game UI elements
             $questionBox.classList.add('hidden');
             $inputControls.classList.add('hidden');
-            $roundCounter.classList.add('hidden');
             $statsDisplay.classList.add('hidden');
             $difficultySelectorContainer.classList.add('hidden');
             $feedback.classList.remove('feedback-visible');
@@ -394,11 +383,10 @@
         }
 
         /**
-         * Resets the game state and starts a new round.
-         * Used for difficulty change and restarting from game over.
+         * Sets the game level and restarts the game state.
          */
-        function setDifficulty(level) {
-            currentDifficulty = level;
+        function setLevel(level) {
+            currentLevel = level;
             
             // Reset state
             score = 0;
@@ -409,13 +397,12 @@
             // Update UI
             $scoreDisplay.textContent = score;
             $streakDisplay.textContent = currentStreak;
-            updateRankDisplay(currentStreak); 
+            // The round display will be updated in startNewRound
 
             // Hide Game Over Screen and show game UI
             $gameOverScreen.classList.add('hidden');
             $questionBox.classList.remove('hidden');
             $inputControls.classList.remove('hidden');
-            $roundCounter.classList.remove('hidden');
             $statsDisplay.classList.remove('hidden');
             $difficultySelectorContainer.classList.remove('hidden');
             $feedback.classList.remove('hidden');
@@ -434,12 +421,14 @@
             $feedback.classList.remove('feedback-visible', 'bg-secondary-color', 'bg-primary-color', 'bg-yellow-600', 'bg-red-500');
             $feedback.textContent = '';
             
-            $roundDisplay.textContent = round;
+            // Update Round Display (e.g., "1 / 25")
+            $roundDisplay.textContent = `${round} / ${MAX_ROUNDS}`;
+
             $streakDisplay.textContent = currentStreak;
             $questionBox.classList.remove('correct-bg');
 
             currentVerbObj = getRandomElement(AR_VERBS);
-            const activePronounList = PRONOUN_GROUPS[currentDifficulty];
+            const activePronounList = PRONOUN_GROUPS[currentLevel];
             currentPronoun = getRandomElement(activePronounList);
 
             $infinitive.textContent = currentVerbObj.infinitive;
@@ -475,7 +464,6 @@
                 $scoreDisplay.textContent = score;
                 $streakDisplay.textContent = currentStreak;
                 triggerPopAnimation(); 
-                updateRankDisplay(currentStreak); 
                 
                 showFeedback(`¡Correcto! **${currentPronoun} ${correctAnswer}**.`, 'bg-secondary-color');
                 $questionBox.classList.add('correct-bg');
@@ -492,14 +480,13 @@
                     $nextButton.textContent = "See Results";
                 }
                 
-                round++;
+                round++; // Increment for the *next* round
 
             } else {
                 // Incorrect Answer - Try Again
                 playSound(false);
                 currentStreak = 0; // Reset streak
                 $streakDisplay.textContent = currentStreak;
-                updateRankDisplay(currentStreak); 
                 
                 showFeedback(`¡Try Again!`, 'bg-red-500'); 
                 
@@ -509,7 +496,7 @@
         }
 
         function nextQuestion() {
-            // New: Check if the game is over
+            // Check if the game is over (since 'round' was incremented to MAX_ROUNDS + 1)
             if (round > MAX_ROUNDS) { 
                 showGameOverScreen();
                 return;
@@ -538,9 +525,8 @@
         // Initialize the game when the window loads
         window.onload = function() {
             $questionBox.classList.add('bg-primary-color');
-            currentDifficulty = $difficultySelect.value; 
-            startNewRound();
-            updateRankDisplay(currentStreak); 
+            currentLevel = $difficultySelect.value; 
+            setLevel(currentLevel); // Use setLevel to properly initialize and start the game
         };
 
     </script>
