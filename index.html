@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>El Conjugador AR</title>
+    <title>El Conjugador AR - 25 Round Challenge</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Load Tone.js for sound generation -->
@@ -67,6 +67,10 @@
             background-color: #3B82F6; /* Blue-500 */
             color: white;
         }
+        #restartButton {
+            background-color: var(--primary-color);
+            color: white;
+        }
         .streak-display {
             color: #D97706; /* Amber-600 */
             font-weight: 700;
@@ -90,10 +94,10 @@
 
     <div id="gameApp" class="game-card rounded-xl p-6 md:p-10 text-center">
         <h1 class="text-3xl md:text-4xl font-extrabold mb-2 text-gray-800">El Conjugador AR</h1>
-        <p class="text-lg text-gray-600 mb-6">Master the Spanish -AR Verbs!</p>
+        <p class="text-lg text-gray-600 mb-6">25 Round Regular -AR Challenge!</p>
 
         <!-- Difficulty Selector -->
-        <div class="mb-4 flex justify-center items-center">
+        <div id="difficultySelectorContainer" class="mb-4 flex justify-center items-center">
             <label for="difficultySelect" class="text-gray-700 font-semibold mr-3 text-sm md:text-base">Difficulty:</label>
             <select 
                 id="difficultySelect" 
@@ -106,14 +110,16 @@
             </select>
         </div>
 
-        <!-- Score & Rank Display (New Gamified Layout) -->
-        <div class="flex justify-between items-center mb-6 text-xl font-semibold">
+        <!-- Score & Rank Display -->
+        <div id="statsDisplay" class="flex justify-between items-center mb-6 text-xl font-semibold">
             <span class="text-gray-700">Score: <span id="scoreDisplay" class="text-2xl text-red-500 transition duration-100">0</span></span>
             <span class="streak-display">Streak: <span id="streakDisplay" class="text-2xl transition duration-100">0</span></span>
             <!-- Rank Display is the new motivational feature -->
             <span class="text-gray-700">Rank: <span id="rankDisplay" class="text-xl text-blue-700 font-extrabold transition duration-100">Novice</span></span>
         </div>
-        <!-- Round display removed from UI to declutter, but still tracked -->
+        
+        <!-- Question Counter -->
+        <p id="roundCounter" class="text-base text-gray-600 mb-4 font-bold">Round <span id="roundDisplay">1</span> of 25</p>
 
         <!-- Question Box -->
         <div id="questionBox" class="question-box rounded-xl p-6 mb-8 shadow-lg">
@@ -124,7 +130,7 @@
         </div>
 
         <!-- Input and Controls -->
-        <div class="space-y-4">
+        <div id="inputControls" class="space-y-4">
             <input
                 type="text"
                 id="answerInput"
@@ -156,6 +162,33 @@
             <!-- Feedback content appears here -->
         </div>
 
+        <!-- Game Over Screen (Hidden initially) -->
+        <div id="gameOverScreen" class="hidden text-left p-6 bg-gray-50 rounded-lg shadow-inner">
+            <h2 class="text-4xl font-extrabold mb-4 text-gray-800 text-center">¡Juego Terminado!</h2>
+            <p class="text-center text-xl text-gray-600 mb-6">Your 25-round challenge results:</p>
+            <ul class="space-y-3 text-lg">
+                <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-red-500 shadow-sm">
+                    <span class="font-semibold text-gray-700">Total Score (Correct)</span>
+                    <span id="finalScore" class="font-extrabold text-2xl text-red-500">0 / 25</span>
+                </li>
+                <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-blue-500 shadow-sm">
+                    <span class="font-semibold text-gray-700">Accuracy</span>
+                    <span id="finalAccuracy" class="font-extrabold text-2xl text-blue-500">0%</span>
+                </li>
+                <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-yellow-600 shadow-sm">
+                    <span class="font-semibold text-gray-700">Highest Streak</span>
+                    <span id="finalHighStreak" class="font-extrabold text-2xl text-yellow-600">0</span>
+                </li>
+            </ul>
+            <button
+                id="restartButton"
+                class="button-style w-full py-3 mt-8 rounded-xl text-xl font-bold uppercase"
+                onclick="setDifficulty(currentDifficulty)"
+            >
+                Play Again!
+            </button>
+        </div>
+        
         <!-- Rules/Help Section -->
         <div class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">
             <p class="font-bold mb-2 text-gray-700">Conjugation Rules:</p>
@@ -166,6 +199,7 @@
 
     <script>
         // --- Game Data ---
+        const MAX_ROUNDS = 25; // New: Game stops after this many rounds
 
         const AR_VERBS = [
             // 20 Most Common Regular -AR Verbs for Foundation Practice
@@ -231,13 +265,11 @@
             if (Tone.context.state !== 'running') { Tone.start(); }
 
             if (isCorrect) {
-                // Stagger the start times slightly to prevent Tone.js scheduling errors 
                 const now = Tone.now();
                 synth.triggerAttackRelease("C6", "8n", now); 
-                synth.triggerAttackRelease("E6", "8n", now + 0.01); // 10ms delay
-                synth.triggerAttackRelease("G6", "8n", now + 0.02); // 20ms delay
+                synth.triggerAttackRelease("E6", "8n", now + 0.01); 
+                synth.triggerAttackRelease("G6", "8n", now + 0.02); 
             } else {
-                // Error tone: low, soft buzz
                 synth.triggerAttackRelease("C4", "16n");
             }
         }
@@ -249,8 +281,9 @@
         let score = 0;
         let round = 1;
         let currentStreak = 0;
-        let isAnswered = false; // State to lock the question once correctly answered
-        let currentDifficulty = 'advanced'; // Default difficulty
+        let highStreak = 0; // New: Tracks the highest streak achieved
+        let isAnswered = false; 
+        let currentDifficulty = 'advanced'; 
 
         // --- DOM Elements ---
         const $infinitive = document.getElementById('infinitiveDisplay');
@@ -261,46 +294,43 @@
         const $nextButton = document.getElementById('nextButton');
         const $scoreDisplay = document.getElementById('scoreDisplay');
         const $streakDisplay = document.getElementById('streakDisplay');
-        const $rankDisplay = document.getElementById('rankDisplay'); // New Element
+        const $rankDisplay = document.getElementById('rankDisplay'); 
+        const $roundDisplay = document.getElementById('roundDisplay'); // Added for the counter
         const $feedback = document.getElementById('feedbackMessage');
         const $questionBox = document.getElementById('questionBox');
         const $difficultySelect = document.getElementById('difficultySelect');
+        
+        // New Game Over Elements
+        const $gameOverScreen = document.getElementById('gameOverScreen');
+        const $gameContainer = document.getElementById('gameApp'); // Main container
+        const $inputControls = document.getElementById('inputControls');
+        const $roundCounter = document.getElementById('roundCounter');
+        const $statsDisplay = document.getElementById('statsDisplay');
+        const $difficultySelectorContainer = document.getElementById('difficultySelectorContainer');
+
+        const $finalScore = document.getElementById('finalScore');
+        const $finalAccuracy = document.getElementById('finalAccuracy');
+        const $finalHighStreak = document.getElementById('finalHighStreak');
 
 
         // --- Helper Functions ---
 
-        /**
-         * Gets a random element from an array.
-         */
         function getRandomElement(arr) {
             return arr[Math.floor(Math.random() * arr.length)];
         }
 
-        /**
-         * Calculates the correct conjugation, handling regular AR verbs.
-         */
         function getCorrectConjugation(verbObj, pronoun) {
             const infinitive = verbObj.infinitive;
             const pronounData = PRONOUNS[pronoun];
             const ending = pronounData.ending;
-
-            // Regular Conjugation
             let stem = infinitive.slice(0, -2); // Remove 'ar'
-
             return stem + ending;
         }
 
-        /**
-         * Normalizes a string by converting to lowercase and removing accents.
-         */
         function normalizeString(str) {
-            // Remove accents and convert to lowercase for comparison
             return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         }
 
-        /**
-         * Updates the Rank display based on the current streak.
-         */
         function updateRankDisplay(streak) {
             let rank = 'Novice';
             if (streak >= 15) {
@@ -313,9 +343,6 @@
             $rankDisplay.textContent = rank;
         }
 
-        /**
-         * Triggers a visual pop animation on score/streak elements.
-         */
         function triggerPopAnimation() {
             $scoreDisplay.classList.add('pop-animation');
             $streakDisplay.classList.add('pop-animation');
@@ -328,9 +355,6 @@
             }, 300);
         }
 
-        /**
-         * Displays a temporary feedback message.
-         */
         function showFeedback(message, colorClass) {
             $feedback.classList.remove('bg-secondary-color', 'bg-primary-color', 'bg-gray-400', 'bg-yellow-600', 'bg-red-500');
             $feedback.classList.add(colorClass, 'text-white', 'feedback-visible');
@@ -343,57 +367,87 @@
                 }, 2000); 
             }
         }
+        
+        // New: Displays the game over screen and calculates stats
+        function showGameOverScreen() {
+            // Hide game UI
+            $questionBox.classList.add('hidden');
+            $inputControls.classList.add('hidden');
+            $roundCounter.classList.add('hidden');
+            $statsDisplay.classList.add('hidden');
+            $difficultySelectorContainer.classList.add('hidden');
+            $feedback.classList.remove('feedback-visible');
+            $feedback.classList.add('hidden');
+
+            // Calculate Final Stats
+            const totalQuestions = MAX_ROUNDS;
+            const finalScore = score;
+            const accuracy = ((finalScore / totalQuestions) * 100).toFixed(1);
+
+            // Update Game Over UI
+            $finalScore.textContent = `${finalScore} / ${totalQuestions}`;
+            $finalAccuracy.textContent = `${accuracy}%`;
+            $finalHighStreak.textContent = highStreak;
+
+            // Show Game Over Screen
+            $gameOverScreen.classList.remove('hidden');
+        }
 
         /**
-         * Sets the game difficulty and restarts the round, resetting scores.
+         * Resets the game state and starts a new round.
+         * Used for difficulty change and restarting from game over.
          */
         function setDifficulty(level) {
             currentDifficulty = level;
             
-            // Reset score, streak, and round when difficulty changes
+            // Reset state
             score = 0;
             round = 1;
             currentStreak = 0;
-            $scoreDisplay.textContent = score;
-            // $roundDisplay.textContent = round; // Hidden from UI
-            $streakDisplay.textContent = currentStreak;
-            updateRankDisplay(currentStreak); // Update rank on reset
+            highStreak = 0; 
 
+            // Update UI
+            $scoreDisplay.textContent = score;
+            $streakDisplay.textContent = currentStreak;
+            updateRankDisplay(currentStreak); 
+
+            // Hide Game Over Screen and show game UI
+            $gameOverScreen.classList.add('hidden');
+            $questionBox.classList.remove('hidden');
+            $inputControls.classList.remove('hidden');
+            $roundCounter.classList.remove('hidden');
+            $statsDisplay.classList.remove('hidden');
+            $difficultySelectorContainer.classList.remove('hidden');
+            $feedback.classList.remove('hidden');
+            
             startNewRound();
         }
 
-        /**
-         * Starts a new round of the game.
-         */
         function startNewRound() {
-            // 1. Reset state for the new round
             isAnswered = false;
             $input.value = '';
             $input.disabled = false;
             $checkButton.disabled = false;
             $checkButton.classList.remove('hidden');
             $nextButton.classList.add('hidden');
+            $nextButton.textContent = 'Next Verb';
             $feedback.classList.remove('feedback-visible', 'bg-secondary-color', 'bg-primary-color', 'bg-yellow-600', 'bg-red-500');
             $feedback.textContent = '';
-            // $roundDisplay.textContent = round; // Hidden from UI
+            
+            $roundDisplay.textContent = round;
             $streakDisplay.textContent = currentStreak;
             $questionBox.classList.remove('correct-bg');
 
-            // 2. Select new verb and pronoun based on difficulty
             currentVerbObj = getRandomElement(AR_VERBS);
             const activePronounList = PRONOUN_GROUPS[currentDifficulty];
             currentPronoun = getRandomElement(activePronounList);
 
-            // 3. Update the UI
             $infinitive.textContent = currentVerbObj.infinitive;
             $meaning.textContent = `(${currentVerbObj.meaning})`;
             $pronoun.textContent = `(${currentPronoun})`;
             $input.focus();
         }
 
-        /**
-         * Checks the user's input against the correct conjugation.
-         */
         function checkAnswer() {
             if (isAnswered) return;
 
@@ -404,8 +458,6 @@
             }
 
             const correctAnswer = getCorrectConjugation(currentVerbObj, currentPronoun);
-
-            // Normalize for comparison (handles accents/case)
             const normalizedUserAnswer = normalizeString(userAnswer);
             const normalizedCorrectAnswer = normalizeString(correctAnswer);
 
@@ -415,10 +467,15 @@
                 score++;
                 currentStreak++;
                 
+                // Update High Streak
+                if (currentStreak > highStreak) {
+                    highStreak = currentStreak;
+                }
+                
                 $scoreDisplay.textContent = score;
                 $streakDisplay.textContent = currentStreak;
-                triggerPopAnimation(); // Run the success animation
-                updateRankDisplay(currentStreak); // Update the rank
+                triggerPopAnimation(); 
+                updateRankDisplay(currentStreak); 
                 
                 showFeedback(`¡Correcto! **${currentPronoun} ${correctAnswer}**.`, 'bg-secondary-color');
                 $questionBox.classList.add('correct-bg');
@@ -429,29 +486,35 @@
                 $input.disabled = true;
                 $checkButton.classList.add('hidden');
                 $nextButton.classList.remove('hidden');
+                
+                // If this was the last round, change the button text
+                if (round === MAX_ROUNDS) {
+                    $nextButton.textContent = "See Results";
+                }
+                
                 round++;
+
             } else {
                 // Incorrect Answer - Try Again
                 playSound(false);
                 currentStreak = 0; // Reset streak
                 $streakDisplay.textContent = currentStreak;
-                updateRankDisplay(currentStreak); // Update rank on reset
+                updateRankDisplay(currentStreak); 
                 
-                // Show "Try Again" message
                 showFeedback(`¡Try Again!`, 'bg-red-500'); 
                 
-                // Keep the input active, but clear it to encourage a new, clean attempt
                 $input.value = '';
                 $input.focus();
-                
-                // isAnswered remains false, allowing the user to check again.
             }
         }
 
-        /**
-         * Handles the transition to the next question.
-         */
         function nextQuestion() {
+            // New: Check if the game is over
+            if (round > MAX_ROUNDS) { 
+                showGameOverScreen();
+                return;
+            }
+
             $questionBox.classList.add('bg-primary-color');
             $questionBox.classList.remove('correct-bg');
             startNewRound();
@@ -463,7 +526,7 @@
         // Allow pressing Enter key to check the answer
         $input.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                e.preventDefault(); // Stop default enter behavior (like form submission)
+                e.preventDefault(); 
                 if (!isAnswered) {
                     checkAnswer();
                 } else {
@@ -474,14 +537,10 @@
 
         // Initialize the game when the window loads
         window.onload = function() {
-            // The initial question box color
             $questionBox.classList.add('bg-primary-color');
-            
-            // Set initial difficulty based on selector (defaults to 'advanced')
             currentDifficulty = $difficultySelect.value; 
-            
             startNewRound();
-            updateRankDisplay(currentStreak); // Initial rank display
+            updateRankDisplay(currentStreak); 
         };
 
     </script>
