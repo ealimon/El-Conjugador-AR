@@ -168,16 +168,21 @@
             <p class="text-center text-xl text-gray-600 mb-6">Your 25-round challenge results:</p>
             <ul class="space-y-3 text-lg">
                 <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-red-500 shadow-sm">
-                    <span class="font-semibold text-gray-700">Total Score (Correct)</span>
+                    <span class="font-semibold text-gray-700">Total Score (Correct Rounds)</span>
                     <span id="finalScore" class="font-extrabold text-2xl text-red-500">0 / 25</span>
                 </li>
+                <!-- NEW STAT: TOTAL ERRORS -->
+                <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-yellow-600 shadow-sm">
+                    <span class="font-semibold text-gray-700">Total Incorrect Guesses (Errors)</span>
+                    <span id="finalErrors" class="font-extrabold text-2xl text-yellow-600">0</span>
+                </li>
                 <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-blue-500 shadow-sm">
-                    <span class="font-semibold text-gray-700">Accuracy</span>
+                    <span class="font-semibold text-gray-700">Round Accuracy</span>
                     <span id="finalAccuracy" class="font-extrabold text-2xl text-blue-500">0%</span>
                 </li>
-                <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-yellow-600 shadow-sm">
+                <li class="flex justify-between items-center p-3 bg-white rounded-lg border-l-4 border-green-500 shadow-sm">
                     <span class="font-semibold text-gray-700">Highest Streak</span>
-                    <span id="finalHighStreak" class="font-extrabold text-2xl text-yellow-600">0</span>
+                    <span id="finalHighStreak" class="font-extrabold text-2xl text-green-500">0</span>
                 </li>
             </ul>
             <button
@@ -282,6 +287,7 @@
         let round = 1;
         let currentStreak = 0;
         let highStreak = 0; // Tracks the highest streak achieved
+        let totalIncorrectAttempts = 0; // NEW: Tracks all incorrect submissions
         let isAnswered = false; 
         let currentLevel = 'beginner'; // UPDATED DEFAULT LEVEL TO BEGINNER
 
@@ -307,6 +313,7 @@
         const $difficultySelectorContainer = document.getElementById('difficultySelectorContainer');
 
         const $finalScore = document.getElementById('finalScore');
+        const $finalErrors = document.getElementById('finalErrors'); // NEW DOM ELEMENT
         const $finalAccuracy = document.getElementById('finalAccuracy');
         const $finalHighStreak = document.getElementById('finalHighStreak');
 
@@ -374,10 +381,12 @@
             // Calculate Final Stats
             const totalQuestions = MAX_ROUNDS;
             const finalScore = score;
+            // Accuracy based on rounds completed correctly
             const accuracy = ((finalScore / totalQuestions) * 100).toFixed(1);
 
             // Update Game Over UI
             $finalScore.textContent = `${finalScore} / ${totalQuestions}`;
+            $finalErrors.textContent = totalIncorrectAttempts; // Display new errors stat
             $finalAccuracy.textContent = `${accuracy}%`;
             $finalHighStreak.textContent = highStreak;
 
@@ -414,7 +423,8 @@
             round = 1;
             currentStreak = 0;
             highStreak = 0; 
-
+            totalIncorrectAttempts = 0; // Reset errors
+            
             // Update UI
             $scoreDisplay.textContent = score;
             $streakDisplay.textContent = currentStreak;
@@ -507,6 +517,7 @@
                 // Incorrect Answer - Try Again
                 playSound(false);
                 currentStreak = 0; // Reset streak
+                totalIncorrectAttempts++; // NEW: Increment error counter
                 $streakDisplay.textContent = currentStreak;
                 
                 showFeedback(`¡Try Again!`, 'bg-red-500'); 
