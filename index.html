@@ -106,9 +106,10 @@
                 class="p-2 border border-gray-300 rounded-lg text-sm md:text-base bg-gray-50 focus:ring-red-500 focus:border-red-500 outline-none" 
                 onchange="setLevel(this.value)"
             >
-                <option value="beginner">Beginner (Singular)</option>
+                <!-- CHANGED DEFAULT TO BEGINNER -->
+                <option value="beginner" selected>Beginner (Singular)</option>
                 <option value="intermediate">Intermediate (Plural)</option>
-                <option value="advanced" selected>Advanced (All)</option>
+                <option value="advanced">Advanced (All)</option>
             </select>
         </div>
 
@@ -117,7 +118,7 @@
             <span class="text-gray-700">Score: <span id="scoreDisplay" class="text-2xl text-red-500 transition duration-100">0</span></span>
             <span class="streak-display">Streak: <span id="streakDisplay" class="text-2xl transition duration-100">0</span></span>
             <!-- 'Rank' replaced with 'Round' -->
-            <span class="text-gray-700">Round: <span id="roundDisplay" class="text-xl text-blue-700 font-extrabold transition duration-100">1 / 25</span></span>
+            <span class="text-gray-700">Round: <span id="roundDisplay" class="xl text-blue-700 font-extrabold transition duration-100">1 / 25</span></span>
         </div>
         
         <!-- Question Box -->
@@ -282,7 +283,7 @@
         let currentStreak = 0;
         let highStreak = 0; // Tracks the highest streak achieved
         let isAnswered = false; 
-        let currentLevel = 'advanced'; // Renamed variable from currentDifficulty
+        let currentLevel = 'beginner'; // UPDATED DEFAULT LEVEL TO BEGINNER
 
         // --- DOM Elements ---
         const $infinitive = document.getElementById('infinitiveDisplay');
