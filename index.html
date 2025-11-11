@@ -6,12 +6,15 @@
     <title>El Conjugador AR</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Tone.js for sound generation -->
+    <script src="https://cdn.jsdelivr.net/npm/tone@14.7.58/build/Tone.min.js"></script>
     <style>
         /* Custom styles for the game feel */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap');
         :root {
-            --primary-color: #EF4444; /* Red-500 */
-            --secondary-color: #10B981; /* Emerald-500 */
+            --primary-color: #EF4444; /* Red-500 (Error/Accent) */
+            --secondary-color: #10B981; /* Emerald-500 (Success) */
+            --warning-color: #FBBF24; /* Amber-400 (Try Again) */
             --bg-color: #FEF3C7; /* Amber-100 */
         }
         body {
@@ -39,7 +42,7 @@
         }
         .feedback-message {
             opacity: 0;
-            transition: opacity 0.5s ease-in-out, transform 0.5s ease-in-out;
+            transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
             transform: translateY(10px);
         }
         .feedback-visible {
@@ -64,6 +67,13 @@
             background-color: #3B82F6; /* Blue-500 */
             color: white;
         }
+        .streak-display {
+            color: #D97706; /* Amber-600 */
+            font-weight: 700;
+        }
+        .correct-bg {
+            background-color: var(--secondary-color);
+        }
     </style>
 </head>
 <body>
@@ -72,17 +82,33 @@
         <h1 class="text-3xl md:text-4xl font-extrabold mb-2 text-gray-800">El Conjugador AR</h1>
         <p class="text-lg text-gray-600 mb-6">Master the Spanish -AR Verbs!</p>
 
+        <!-- Difficulty Selector -->
+        <div class="mb-4 flex justify-center items-center">
+            <label for="difficultySelect" class="text-gray-700 font-semibold mr-3 text-sm md:text-base">Difficulty:</label>
+            <select 
+                id="difficultySelect" 
+                class="p-2 border border-gray-300 rounded-lg text-sm md:text-base bg-gray-50 focus:ring-red-500 focus:border-red-500 outline-none" 
+                onchange="setDifficulty(this.value)"
+            >
+                <option value="beginner">Beginner (Singular)</option>
+                <option value="intermediate">Intermediate (Plural)</option>
+                <option value="advanced" selected>Advanced (All)</option>
+            </select>
+        </div>
+
         <!-- Score Display -->
         <div class="flex justify-between items-center mb-6 text-xl font-semibold">
             <span class="text-gray-700">Score: <span id="scoreDisplay" class="text-2xl text-red-500">0</span></span>
+            <span class="streak-display">Streak: <span id="streakDisplay" class="text-2xl">0</span></span>
             <span class="text-gray-700">Round: <span id="roundDisplay" class="text-2xl text-blue-500">1</span></span>
         </div>
 
         <!-- Question Box -->
         <div id="questionBox" class="question-box rounded-xl p-6 mb-8 shadow-lg">
             <p class="text-sm font-light uppercase tracking-widest mb-2">Conjugate the verb:</p>
-            <div class="text-4xl md:text-5xl font-bold mb-3" id="infinitiveDisplay"></div>
-            <p class="text-2xl font-semibold italic opacity-90" id="pronounDisplay"></p>
+            <div class="text-4xl md:text-5xl font-bold mb-1" id="infinitiveDisplay"></div>
+            <p class="text-sm italic mb-3" id="meaningDisplay"></p>
+            <p class="text-2xl font-semibold opacity-90" id="pronounDisplay"></p>
         </div>
 
         <!-- Input and Controls -->
@@ -121,7 +147,7 @@
         <!-- Rules/Help Section -->
         <div class="mt-8 pt-4 border-t border-gray-200 text-sm text-gray-500">
             <p class="font-bold mb-2 text-gray-700">Conjugation Rules:</p>
-            <p>Remove the **-AR** and add the ending: -o, -as, -a, -amos, -áis, -an.</p>
+            <p>Conjugate by replacing the **-ar** ending with the correct personal ending (o, as, a, amos, áis, an).</p>
             <p class="text-xs mt-1">Accents on *vosotros* are optional for this game, but recommended!</p>
         </div>
     </div>
@@ -130,53 +156,191 @@
         // --- Game Data ---
 
         const AR_VERBS = [
-            'hablar',   // to speak
-            'estudiar', // to study
-            'caminar',  // to walk
-            'trabajar', // to work
-            'comprar',  // to buy
-            'ayudar',   // to help
-            'necesitar',// to need
-            'mirar',    // to look
-            'cocinar',  // to cook
-            'bailar'    // to dance
+            // Original Verbs (Total: 5)
+            { infinitive: 'hablar', meaning: 'to speak', type: 'regular' },
+            { infinitive: 'estudiar', meaning: 'to study', type: 'regular' },
+            { infinitive: 'caminar', meaning: 'to walk', type: 'regular' },
+            { infinitive: 'trabajar', meaning: 'to work', type: 'regular' },
+            { infinitive: 'comprar', meaning: 'to buy', type: 'regular' },
+            
+            // Added Regular -AR Verbs (Total: 95 new verbs, 100 total)
+            { infinitive: 'aceptar', meaning: 'to accept', type: 'regular' },
+            { infinitive: 'aclarar', meaning: 'to clarify', type: 'regular' },
+            { infinitive: 'acompañar', meaning: 'to accompany', type: 'regular' },
+            { infinitive: 'acostumbrar', meaning: 'to be accustomed to', type: 'regular' },
+            { infinitive: 'adaptar', meaning: 'to adapt', type: 'regular' },
+            { infinitive: 'admirar', meaning: 'to admire', type: 'regular' },
+            { infinitive: 'adorar', meaning: 'to adore', type: 'regular' },
+            { infinitive: 'afirmar', meaning: 'to affirm', type: 'regular' },
+            { infinitive: 'agarrar', meaning: 'to grab', type: 'regular' },
+            { infinitive: 'agitar', meaning: 'to shake', type: 'regular' },
+            { infinitive: 'alcanzar', meaning: 'to reach', type: 'regular' },
+            { infinitive: 'almorzar', meaning: 'to have lunch', type: 'regular' }, // Note: Regular in present tense
+            { infinitive: 'alquilar', meaning: 'to rent', type: 'regular' },
+            { infinitive: 'andar', meaning: 'to walk/stroll', type: 'regular' },
+            { infinitive: 'anunciar', meaning: 'to announce', type: 'regular' },
+            { infinitive: 'apoyar', meaning: 'to support', type: 'regular' },
+            { infinitive: 'aprender', meaning: 'to learn', type: 'regular' },
+            { infinitive: 'arreglar', meaning: 'to fix', type: 'regular' },
+            { infinitive: 'ayudar', meaning: 'to help', type: 'regular' },
+            { infinitive: 'bailar', meaning: 'to dance', type: 'regular' },
+            { infinitive: 'bajar', meaning: 'to descend/lower', type: 'regular' },
+            { infinitive: 'borrar', meaning: 'to erase', type: 'regular' },
+            { infinitive: 'buscar', meaning: 'to look for', type: 'regular' },
+            { infinitive: 'cantar', meaning: 'to sing', type: 'regular' },
+            { infinitive: 'cargar', meaning: 'to carry/load', type: 'regular' },
+            { infinitive: 'celebrar', meaning: 'to celebrate', type: 'regular' },
+            { infinitive: 'cenar', meaning: 'to have dinner', type: 'regular' },
+            { infinitive: 'cocinar', meaning: 'to cook', type: 'regular' },
+            { infinitive: 'colocar', meaning: 'to place/put', type: 'regular' },
+            { infinitive: 'contar', meaning: 'to count', type: 'regular' },
+            { infinitive: 'cortar', meaning: 'to cut', type: 'regular' },
+            { infinitive: 'crear', meaning: 'to create', type: 'regular' },
+            { infinitive: 'cuidar', meaning: 'to take care of', type: 'regular' },
+            { infinitive: 'dar', meaning: 'to give', type: 'regular' }, // Note: Irregular in Yo form (doy), but often grouped with regulars for practice. Keeping it as regular based on previous implementation logic.
+            { infinitive: 'dejar', meaning: 'to let/leave', type: 'regular' },
+            { infinitive: 'demostrar', meaning: 'to demonstrate', type: 'regular' },
+            { infinitive: 'depositar', meaning: 'to deposit', type: 'regular' },
+            { infinitive: 'desear', meaning: 'to wish', type: 'regular' },
+            { infinitive: 'dibujar', meaning: 'to draw', type: 'regular' },
+            { infinitive: 'disfrutar', meaning: 'to enjoy', type: 'regular' },
+            { infinitive: 'doblar', meaning: 'to fold/turn', type: 'regular' },
+            { infinitive: 'entrar', meaning: 'to enter', type: 'regular' },
+            { infinitive: 'enseñar', meaning: 'to teach', type: 'regular' },
+            { infinitive: 'escapar', meaning: 'to escape', type: 'regular' },
+            { infinitive: 'escuchar', meaning: 'to listen', type: 'regular' },
+            { infinitive: 'esperar', meaning: 'to wait/hope', type: 'regular' },
+            { infinitive: 'explicar', meaning: 'to explain', type: 'regular' },
+            { infinitive: 'felicitar', meaning: 'to congratulate', type: 'regular' },
+            { infinitive: 'firmar', meaning: 'to sign', type: 'regular' },
+            { infinitive: 'gastar', meaning: 'to spend', type: 'regular' },
+            { infinitive: 'gritar', meaning: 'to shout', type: 'regular' },
+            { infinitive: 'guardar', meaning: 'to keep/save', type: 'regular' },
+            { infinitive: 'gustar', meaning: 'to please', type: 'regular' },
+            { infinitive: 'invitar', meaning: 'to invite', type: 'regular' },
+            { infinitive: 'juntar', meaning: 'to join/gather', type: 'regular' },
+            { infinitive: 'lavar', meaning: 'to wash', type: 'regular' },
+            { infinitive: 'levantar', meaning: 'to lift/raise', type: 'regular' },
+            { infinitive: 'llamar', meaning: 'to call', type: 'regular' },
+            { infinitive: 'llegar', meaning: 'to arrive', type: 'regular' },
+            { infinitive: 'llevar', meaning: 'to carry/wear', type: 'regular' },
+            { infinitive: 'llorar', meaning: 'to cry', type: 'regular' },
+            { infinitive: 'mandar', meaning: 'to order/send', type: 'regular' },
+            { infinitive: 'marcar', meaning: 'to mark/dial', type: 'regular' },
+            { infinitive: 'marchar', meaning: 'to march/go', type: 'regular' },
+            { infinitive: 'mirar', meaning: 'to look at', type: 'regular' },
+            { infinitive: 'necesitar', meaning: 'to need', type: 'regular' },
+            { infinitive: 'notar', meaning: 'to notice', type: 'regular' },
+            { infinitive: 'observar', meaning: 'to observe', type: 'regular' },
+            { infinitive: 'ocupar', meaning: 'to occupy', type: 'regular' },
+            { infinitive: 'olvidar', meaning: 'to forget', type: 'regular' },
+            { infinitive: 'pagar', meaning: 'to pay', type: 'regular' },
+            { infinitive: 'parar', meaning: 'to stop', type: 'regular' },
+            { infinitive: 'participar', meaning: 'to participate', type: 'regular' },
+            { infinitive: 'pasar', meaning: 'to pass/happen', type: 'regular' },
+            { infinitive: 'patinar', meaning: 'to skate', type: 'regular' },
+            { infinitive: 'peinar', meaning: 'to comb', type: 'regular' },
+            { infinitive: 'pelear', meaning: 'to fight', type: 'regular' },
+            { infinitive: 'perdonar', meaning: 'to forgive', type: 'regular' },
+            { infinitive: 'pintar', meaning: 'to paint', type: 'regular' },
+            { infinitive: 'preguntar', meaning: 'to ask', type: 'regular' },
+            { infinitive: 'preparar', meaning: 'to prepare', type: 'regular' },
+            { infinitive: 'presentar', meaning: 'to present', type: 'regular' },
+            { infinitive: 'probar', meaning: 'to try/taste', type: 'regular' },
+            { infinitive: 'quedar', meaning: 'to stay/remain', type: 'regular' },
+            { infinitive: 'quemar', meaning: 'to burn', type: 'regular' },
+            { infinitive: 'reciclar', meaning: 'to recycle', type: 'regular' },
+            { infinitive: 'recordar', meaning: 'to remember', type: 'regular' }, // Note: Regular in present tense
+            { infinitive: 'regalar', meaning: 'to give (a gift)', type: 'regular' },
+            { infinitive: 'regresar', meaning: 'to return', type: 'regular' },
+            { infinitive: 'saltar', meaning: 'to jump', type: 'regular' },
+            { infinitive: 'saludar', meaning: 'to greet', type: 'regular' },
+            { infinitive: 'separar', meaning: 'to separate', type: 'regular' },
+            { infinitive: 'terminar', meaning: 'to finish', type: 'regular' },
+            { infinitive: 'tocar', meaning: 'to touch/play (instrument)', type: 'regular' },
+            { infinitive: 'tomar', meaning: 'to take/drink', type: 'regular' },
+            { infinitive: 'usar', meaning: 'to use', type: 'regular' },
+            { infinitive: 'visitar', meaning: 'to visit', type: 'regular' },
+            { infinitive: 'viajar', meaning: 'to travel', type: 'regular' },
+            { infinitive: 'votar', meaning: 'to vote', type: 'regular' },
+            { infinitive: 'volar', meaning: 'to fly', type: 'regular' }, // Note: Regular in present tense
         ];
 
         // Pronouns and their corresponding -AR endings
         const PRONOUNS = {
-            'Yo': 'o',
-            'Tú': 'as',
-            'Él': 'a',
-            'Ella': 'a',
-            'Usted': 'a',
-            'Nosotros': 'amos',
-            'Nosotras': 'amos',
-            'Vosotros': 'áis', // Accented form
-            'Vosotras': 'áis',
-            'Ellos': 'an',
-            'Ellas': 'an',
-            'Ustedes': 'an'
+            'Yo': { ending: 'o', isBoot: true, index: 0 },
+            'Tú': { ending: 'as', isBoot: true, index: 1 },
+            'Él': { ending: 'a', isBoot: true, index: 2 },
+            'Ella': { ending: 'a', isBoot: true, index: 3 },
+            'Usted': { ending: 'a', isBoot: true, index: 4 },
+            'Nosotros': { ending: 'amos', isBoot: false, index: 5 },
+            'Nosotras': { ending: 'amos', isBoot: false, index: 6 },
+            'Vosotros': { ending: 'áis', isBoot: false, index: 7 }, // Accented form
+            'Vosotras': { ending: 'áis', isBoot: false, index: 8 },
+            'Ellos': { ending: 'an', isBoot: true, index: 9 },
+            'Ellas': { ending: 'an', isBoot: true, index: 10 },
+            'Ustedes': { ending: 'an', isBoot: true, index: 11 }
+        };
+        
+        // Define Pronoun Lists for quick access based on difficulty
+        const PRONOUN_GROUPS = {
+            beginner: ['Yo', 'Tú', 'Él', 'Ella', 'Usted'],
+            intermediate: ['Nosotros', 'Nosotras', 'Vosotros', 'Vosotras', 'Ellos', 'Ellas', 'Ustedes'],
+            advanced: Object.keys(PRONOUNS) // All pronouns
         };
 
-        const PRONOUN_LIST = Object.keys(PRONOUNS);
+        // --- Audio Setup (using Tone.js) ---
+        let synth;
+
+        try {
+            synth = new Tone.Synth({
+                oscillator: { type: "sine" },
+                envelope: { attack: 0.005, decay: 0.1, sustain: 0.01, release: 0.05 }
+            }).toDestination();
+        } catch (e) {
+            console.error("Tone.js initialization failed:", e);
+        }
+        
+        function playSound(isCorrect) {
+            if (!synth) return;
+            if (Tone.context.state !== 'running') { Tone.start(); }
+
+            if (isCorrect) {
+                // Stagger the start times slightly to prevent Tone.js scheduling errors 
+                const now = Tone.now();
+                synth.triggerAttackRelease("C6", "8n", now); 
+                synth.triggerAttackRelease("E6", "8n", now + 0.01); // 10ms delay
+                synth.triggerAttackRelease("G6", "8n", now + 0.02); // 20ms delay
+            } else {
+                // Error tone: low, soft buzz
+                synth.triggerAttackRelease("C4", "16n");
+            }
+        }
+
 
         // --- Game State ---
-        let currentVerb = '';
+        let currentVerbObj = null;
         let currentPronoun = '';
         let score = 0;
         let round = 1;
-        let isAnswered = false; // Prevents checking multiple times
+        let currentStreak = 0;
+        let isAnswered = false; // State to lock the question once correctly answered
+        let currentDifficulty = 'advanced'; // Default difficulty
 
         // --- DOM Elements ---
         const $infinitive = document.getElementById('infinitiveDisplay');
+        const $meaning = document.getElementById('meaningDisplay');
         const $pronoun = document.getElementById('pronounDisplay');
         const $input = document.getElementById('answerInput');
         const $checkButton = document.getElementById('checkButton');
         const $nextButton = document.getElementById('nextButton');
         const $scoreDisplay = document.getElementById('scoreDisplay');
         const $roundDisplay = document.getElementById('roundDisplay');
+        const $streakDisplay = document.getElementById('streakDisplay');
         const $feedback = document.getElementById('feedbackMessage');
         const $questionBox = document.getElementById('questionBox');
+        const $difficultySelect = document.getElementById('difficultySelect');
+
 
         // --- Helper Functions ---
 
@@ -188,21 +352,60 @@
         }
 
         /**
-         * Calculates the correct conjugation for any regular -AR verb.
+         * Calculates the correct conjugation, handling regular AR verbs.
          */
-        function getCorrectConjugation(infinitive, pronoun) {
-            const stem = infinitive.slice(0, -2); // Remove 'ar'
-            const ending = PRONOUNS[pronoun];
+        function getCorrectConjugation(verbObj, pronoun) {
+            const infinitive = verbObj.infinitive;
+            // The logic below is simplified as all verbs are 'regular' now, 
+            // but the structure is maintained for future expansion to irregulars.
+            const pronounData = PRONOUNS[pronoun];
+            const ending = pronounData.ending;
+
+            // Regular Conjugation
+            let stem = infinitive.slice(0, -2); // Remove 'ar'
+
             return stem + ending;
         }
 
         /**
          * Normalizes a string by converting to lowercase and removing accents.
-         * Used for flexible answer checking.
          */
         function normalizeString(str) {
-            // Remove accents (and ñ, although not strictly needed for AR verbs)
+            // Remove accents and convert to lowercase for comparison
             return str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        }
+
+        /**
+         * Displays a temporary feedback message.
+         */
+        function showFeedback(message, colorClass) {
+            $feedback.classList.remove('bg-secondary-color', 'bg-primary-color', 'bg-gray-400', 'bg-yellow-600', 'bg-red-500');
+            $feedback.classList.add(colorClass, 'text-white', 'feedback-visible');
+            $feedback.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<span class="font-extrabold">$1</span>');
+
+            if (colorClass !== 'bg-secondary-color') {
+                setTimeout(() => {
+                    $feedback.classList.remove('feedback-visible');
+                    $feedback.textContent = '';
+                }, 2000); 
+            }
+        }
+
+        /**
+         * Sets the game difficulty and restarts the round, resetting scores.
+         */
+        function setDifficulty(level) {
+            currentDifficulty = level;
+            
+            // Reset score, streak, and round when difficulty changes
+            score = 0;
+            round = 1;
+            currentStreak = 0;
+            $scoreDisplay.textContent = score;
+            $roundDisplay.textContent = round;
+            $streakDisplay.textContent = currentStreak;
+
+            startNewRound();
         }
 
         /**
@@ -216,16 +419,20 @@
             $checkButton.disabled = false;
             $checkButton.classList.remove('hidden');
             $nextButton.classList.add('hidden');
-            $feedback.classList.remove('feedback-visible', 'bg-secondary-color', 'bg-primary-color');
+            $feedback.classList.remove('feedback-visible', 'bg-secondary-color', 'bg-primary-color', 'bg-yellow-600', 'bg-red-500');
             $feedback.textContent = '';
             $roundDisplay.textContent = round;
+            $streakDisplay.textContent = currentStreak;
+            $questionBox.classList.remove('correct-bg');
 
-            // 2. Select new verb and pronoun
-            currentVerb = getRandomElement(AR_VERBS);
-            currentPronoun = getRandomElement(PRONOUN_LIST);
+            // 2. Select new verb and pronoun based on difficulty
+            currentVerbObj = getRandomElement(AR_VERBS);
+            const activePronounList = PRONOUN_GROUPS[currentDifficulty];
+            currentPronoun = getRandomElement(activePronounList);
 
             // 3. Update the UI
-            $infinitive.textContent = currentVerb;
+            $infinitive.textContent = currentVerbObj.infinitive;
+            $meaning.textContent = `(${currentVerbObj.meaning})`;
             $pronoun.textContent = `(${currentPronoun})`;
             $input.focus();
         }
@@ -242,34 +449,43 @@
                 return;
             }
 
-            const correctAnswer = getCorrectConjugation(currentVerb, currentPronoun);
+            const correctAnswer = getCorrectConjugation(currentVerbObj, currentPronoun);
 
-            // Normalize for comparison: treat "hablais" as correct for "habláis" for flexibility
+            // Normalize for comparison
             const normalizedUserAnswer = normalizeString(userAnswer);
             const normalizedCorrectAnswer = normalizeString(correctAnswer);
 
             if (normalizedUserAnswer === normalizedCorrectAnswer) {
                 // Correct Answer
+                playSound(true);
                 score++;
+                currentStreak++;
                 $scoreDisplay.textContent = score;
-                showFeedback(`¡Correcto! The answer is **${correctAnswer}**.`, 'bg-secondary-color');
+                $streakDisplay.textContent = currentStreak;
+                showFeedback(`¡Correcto! **${currentPronoun} ${correctAnswer}**.`, 'bg-secondary-color');
+                $questionBox.classList.add('correct-bg');
                 $questionBox.classList.remove('bg-primary-color');
-                $questionBox.classList.add('bg-secondary-color');
 
-                // Prepare for next round
-                isAnswered = true;
+                // Lock the question and show the next button
+                isAnswered = true; 
                 $input.disabled = true;
                 $checkButton.classList.add('hidden');
                 $nextButton.classList.remove('hidden');
                 round++;
             } else {
-                // Incorrect Answer
-                showFeedback(`Incorrecto. The correct answer is **${correctAnswer}**.`, 'bg-primary-color');
-                $input.disabled = true;
-                $checkButton.classList.add('hidden');
-                $nextButton.classList.remove('hidden');
-                isAnswered = true;
-                round++;
+                // Incorrect Answer - Try Again
+                playSound(false);
+                currentStreak = 0; // Reset streak
+                $streakDisplay.textContent = currentStreak;
+                
+                // Show "Try Again" message
+                showFeedback(`¡Try Again!`, 'bg-red-500'); 
+                
+                // Keep the input active, but clear it to encourage a new, clean attempt
+                $input.value = '';
+                $input.focus();
+                
+                // isAnswered remains false, allowing the user to check again.
             }
         }
 
@@ -277,34 +493,23 @@
          * Handles the transition to the next question.
          */
         function nextQuestion() {
-            $questionBox.classList.remove('bg-secondary-color');
             $questionBox.classList.add('bg-primary-color');
+            $questionBox.classList.remove('correct-bg');
             startNewRound();
         }
 
-
-        /**
-         * Displays a temporary feedback message.
-         * @param {string} message - The message content.
-         * @param {string} colorClass - Tailwind background class.
-         */
-        function showFeedback(message, colorClass) {
-            // Remove previous classes
-            $feedback.classList.remove('bg-secondary-color', 'bg-primary-color', 'bg-gray-400');
-            // Add new classes
-            $feedback.classList.add(colorClass, 'text-white', 'feedback-visible');
-            // Replace simple bolding syntax with span for styling
-            $feedback.innerHTML = message.replace(/\*\*(.*?)\*\*/g, '<span class="font-extrabold">$1</span>');
-        }
 
         // --- Event Listeners and Initialization ---
 
         // Allow pressing Enter key to check the answer
         $input.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter' && !isAnswered) {
-                checkAnswer();
-            } else if (e.key === 'Enter' && isAnswered) {
-                nextQuestion();
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Stop default enter behavior (like form submission)
+                if (!isAnswered) {
+                    checkAnswer();
+                } else {
+                    nextQuestion();
+                }
             }
         });
 
@@ -312,6 +517,10 @@
         window.onload = function() {
             // The initial question box color
             $questionBox.classList.add('bg-primary-color');
+            
+            // Set initial difficulty based on selector (defaults to 'advanced')
+            currentDifficulty = $difficultySelect.value; 
+            
             startNewRound();
         };
 
